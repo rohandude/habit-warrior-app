@@ -1,9 +1,10 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useXP } from "@/src/context/XPContext";
 
 export default function VoiceGreeting() {
   const { currentRank } = useXP();
   const [hasPlayed, setHasPlayed] = useState(false);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const speakGreeting = useCallback(() => {
     if (hasPlayed) return;
@@ -12,9 +13,10 @@ export default function VoiceGreeting() {
     const name = "Rohan";
     const text = `Welcome back ${name}, you are a ${currentRank.name}`;
     
-    const utterance = new SpeechSynthesisUtterance(text);
-    
-    const voices = window.speechSynthesis.getVoices();
+    // Stop any ongoing speech
+    window.speechSynthesis.cancel();
+
+    utteranceRef.current = new SpeechSynthesisUtterance(text);
     
     const findVoice = () => {
       const availableVoices = window.speechSynthesis.getVoices();
@@ -25,13 +27,17 @@ export default function VoiceGreeting() {
 
     const voice = findVoice();
     if (voice) {
-      utterance.voice = voice;
+      utteranceRef.current.voice = voice;
     }
 
-    utterance.rate = 0.95;
-    utterance.pitch = 1;
+    utteranceRef.current.rate = 0.95;
+    utteranceRef.current.pitch = 1;
 
-    window.speechSynthesis.speak(utterance);
+    utteranceRef.current.onend = () => {
+      utteranceRef.current = null;
+    };
+
+    window.speechSynthesis.speak(utteranceRef.current);
     setHasPlayed(true);
   }, [currentRank.name, hasPlayed]);
 

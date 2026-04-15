@@ -33,6 +33,13 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const setVolume = (newVolume: number) => {
     const safeVolume = isNaN(newVolume) ? 0.5 : Math.max(0, Math.min(1, newVolume));
     setVolumeState(safeVolume);
+    
+    // Clear fade-in if user manually adjusts volume
+    if (fadeIntervalRef.current) {
+      clearInterval(fadeIntervalRef.current);
+      fadeIntervalRef.current = null;
+    }
+
     if (audioRef.current) {
       try {
         audioRef.current.volume = safeVolume;
@@ -48,7 +55,10 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (isPlaying) {
       audioRef.current.pause();
       setIsPlaying(false);
-      if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
+      if (fadeIntervalRef.current) {
+        clearInterval(fadeIntervalRef.current);
+        fadeIntervalRef.current = null;
+      }
     } else {
       setIsPlaying(true);
       
@@ -69,19 +79,25 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       fadeIntervalRef.current = setInterval(() => {
         if (audioRef.current) {
-          currentFadeVol += 0.05;
+          currentFadeVol += 0.02; // Slower, smoother fade
           if (currentFadeVol >= targetVolume) {
             audioRef.current.volume = targetVolume;
-            if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
+            if (fadeIntervalRef.current) {
+              clearInterval(fadeIntervalRef.current);
+              fadeIntervalRef.current = null;
+            }
           } else {
             try {
               audioRef.current.volume = Math.min(1, Math.max(0, currentFadeVol));
             } catch (e) {
-              if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
+              if (fadeIntervalRef.current) {
+                clearInterval(fadeIntervalRef.current);
+                fadeIntervalRef.current = null;
+              }
             }
           }
         }
-      }, 100);
+      }, 50);
     }
   };
 
