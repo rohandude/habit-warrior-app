@@ -3,14 +3,19 @@ import WarriorCard from "@/src/components/WarriorCard";
 import WarriorAvatar from "@/src/components/WarriorAvatar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Flame, Sword, Trophy, Zap, Clock, Shield } from "lucide-react";
-import { motion } from "motion/react";
+import { Flame, Sword, Trophy, Zap, Clock, Shield, AlertCircle } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { useAlarm } from "@/src/context/AlarmContext";
+import { useXP } from "@/src/context/XPContext";
 
-export default function HomeScreen() {
+export default function HomeScreen({ onNavigate }: { onNavigate?: (screen: string) => void }) {
   const [isCelebrating, setIsCelebrating] = useState(false);
+  const { isAlarmActive, alarmTime } = useAlarm();
+  const { level, xp, addXP } = useXP();
 
   const handleReady = () => {
     setIsCelebrating(true);
+    addXP(50); // Reward for being ready
     setTimeout(() => setIsCelebrating(false), 2000);
   };
 
@@ -19,7 +24,7 @@ export default function HomeScreen() {
       {/* Hero Section: Avatar & Stats */}
       <div className="flex items-center gap-6">
         <WarriorAvatar 
-          level={12} 
+          level={level} 
           isCelebrating={isCelebrating} 
           className="w-32 h-32" 
         />
@@ -32,14 +37,42 @@ export default function HomeScreen() {
             </div>
           </div>
           <div className="space-y-1">
-            <p className="text-[11px] uppercase tracking-[2px] text-[#888]">Willpower Score</p>
+            <p className="text-[11px] uppercase tracking-[2px] text-[#888]">Total Honor</p>
             <div className="flex items-baseline gap-1">
-              <span className="text-2xl font-heading text-warrior-red">890</span>
-              <span className="text-[10px] text-[#555] font-bold uppercase">Pts</span>
+              <span className="text-2xl font-heading text-warrior-red">{xp}</span>
+              <span className="text-[10px] text-[#555] font-bold uppercase">XP</span>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Alarm Status Banner */}
+      <AnimatePresence>
+        {isAlarmActive && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div 
+              onClick={() => onNavigate?.("rituals")}
+              className="bg-warrior-red/10 border border-warrior-red/30 p-3 rounded-xl flex items-center justify-between cursor-pointer hover:bg-warrior-red/20 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <Clock size={16} className="text-warrior-red animate-pulse" />
+                <div>
+                  <p className="text-[10px] font-bold text-white uppercase tracking-tighter">Ritual Pending</p>
+                  <p className="text-[12px] font-heading text-warrior-red">{alarmTime}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 text-[10px] font-bold text-warrior-orange uppercase">
+                <AlertCircle size={12} /> Solve Early
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Morning Challenge Card */}
       <WarriorCard title="Next Rite of Passage" glow>
@@ -89,11 +122,19 @@ export default function HomeScreen() {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-4">
-        <Button variant="outline" className="border-warrior-metal bg-warrior-metal/30 hover:bg-warrior-metal/50 text-white font-heading py-8">
-          <Sword className="mr-2" size={18} />
-          Set Habits
+        <Button 
+          variant="outline" 
+          onClick={() => onNavigate?.("rituals")}
+          className="border-warrior-metal bg-warrior-metal/30 hover:bg-warrior-metal/50 text-white font-heading py-8"
+        >
+          <Clock className="mr-2" size={18} />
+          Set Rituals
         </Button>
-        <Button variant="outline" className="border-warrior-metal bg-warrior-metal/30 hover:bg-warrior-metal/50 text-white font-heading py-8">
+        <Button 
+          variant="outline" 
+          onClick={() => onNavigate?.("rewards")}
+          className="border-warrior-metal bg-warrior-metal/30 hover:bg-warrior-metal/50 text-white font-heading py-8"
+        >
           <Trophy className="mr-2" size={18} />
           Rewards
         </Button>

@@ -1,6 +1,7 @@
 import React from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Home, Sword, Shield, Trophy, User } from "lucide-react";
+import { Home, Sword, Shield, Trophy, User, Clock } from "lucide-react";
+import { useXP } from "@/src/context/XPContext";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -9,9 +10,12 @@ interface LayoutProps {
 }
 
 export default function Layout({ children, currentScreen, onScreenChange }: LayoutProps) {
+  const { level, currentRank, progressToNext, xp } = useXP();
+  
   const navItems = [
     { id: "home", icon: Home, label: "Home" },
     { id: "challenge", icon: Sword, label: "Battle" },
+    { id: "rituals", icon: Clock, label: "Rituals" },
     { id: "levels", icon: Shield, label: "Rank" },
     { id: "rewards", icon: Trophy, label: "Loot" },
     { id: "profile", icon: User, label: "Hero" },
@@ -23,18 +27,22 @@ export default function Layout({ children, currentScreen, onScreenChange }: Layo
       <header className="p-4 border-b-3 border-warrior-red flex justify-between items-center bg-gradient-to-b from-[#1e1a19] to-[#0a0808] z-10">
         <div className="flex items-center gap-3">
           <div className="h-12 w-12 bg-warrior-red rank-hexagon flex items-center justify-center font-heading text-xl text-white warrior-glow">
-            12
+            {level}
           </div>
           <div className="rank-info">
-            <h1 className="text-lg font-heading text-warrior-gold tracking-widest leading-none">Warrior Habit</h1>
+            <h1 className="text-lg font-heading text-warrior-gold tracking-widest leading-none">{currentRank.name}</h1>
             <div className="w-32 h-2 bg-[#222] rounded-full mt-1 overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-warrior-orange to-warrior-red w-3/4 warrior-glow" />
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${progressToNext}%` }}
+                className="h-full bg-gradient-to-r from-warrior-orange to-warrior-red warrior-glow" 
+              />
             </div>
           </div>
         </div>
         <div className="text-right">
-          <p className="text-[8px] uppercase font-bold text-muted-foreground tracking-widest">Kingdom Rank</p>
-          <span className="text-xs font-heading text-warrior-orange">Top 3% Global</span>
+          <p className="text-[8px] uppercase font-bold text-muted-foreground tracking-widest">Total Honor</p>
+          <span className="text-xs font-heading text-warrior-orange">{xp} XP</span>
         </div>
       </header>
 
