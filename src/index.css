@@ -1,0 +1,127 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: "Impact", "Arial Black", sans-serif;
+    --font-sans: "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "JetBrains Mono", monospace;
+    
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+
+    --color-warrior-red: #ff3131;
+    --color-warrior-orange: #ff8c00;
+    --color-warrior-gold: #e2c08d;
+    --color-warrior-metal: #4a423f;
+    --color-warrior-dark: #0a0808;
+    --color-warrior-surface: #1a1514;
+}
+
+:root {
+    --background: #0a0808;
+    --foreground: #ffffff;
+    --card: #1a1514;
+    --card-foreground: #ffffff;
+    --popover: #1a1514;
+    --popover-foreground: #ffffff;
+    --primary: #ff3131;
+    --primary-foreground: #ffffff;
+    --secondary: #4a423f;
+    --secondary-foreground: #ffffff;
+    --muted: #1a1514;
+    --muted-foreground: #888888;
+    --accent: #ff8c00;
+    --accent-foreground: #ffffff;
+    --destructive: #ef4444;
+    --border: #4a423f;
+    --input: #4a423f;
+    --ring: #ff3131;
+    --radius: 0rem;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    background: radial-gradient(circle at center, #2d1b1b 0%, #0a0808 100%);
+    background-attachment: fixed;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading tracking-wider uppercase;
+  }
+}
+
+@layer utilities {
+  .warrior-glow {
+    box-shadow: 0 0 15px rgba(255, 49, 49, 0.4);
+  }
+  .warrior-glow-orange {
+    box-shadow: 0 0 15px rgba(255, 140, 0, 0.4);
+  }
+  .panel-shadow {
+    box-shadow: inset 0 0 15px rgba(0,0,0,0.8);
+  }
+  .fire-text {
+    color: var(--warrior-red);
+    text-shadow: 0 0 20px rgba(255, 49, 49, 0.4);
+  }
+  .battle-border {
+    border: 2px solid var(--warrior-metal);
+    position: relative;
+  }
+  .battle-border::before {
+    content: '';
+    position: absolute;
+    top: -2px; left: -2px; right: -2px; bottom: -2px;
+    border: 1px solid rgba(255, 49, 49, 0.2);
+    pointer-events: none;
+  }
+  .warrior-btn {
+    clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%);
+  }
+  .rank-hexagon {
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  }
+}
