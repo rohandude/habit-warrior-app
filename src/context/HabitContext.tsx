@@ -25,10 +25,15 @@ const DEFAULT_HABITS: Habit[] = [
 export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [habits, setHabits] = useState<Habit[]>(() => {
     const saved = localStorage.getItem("warrior_habits");
+    const lastReset = localStorage.getItem("warrior_habits_reset");
+    const today = new Date().toISOString().split("T")[0];
+
     if (saved) {
       const parsed = JSON.parse(saved);
-      // Check if it's a new day to reset? 
-      // For simplicity in this demo, we just load them.
+      if (lastReset !== today) {
+        // New day, reset completion
+        return parsed.map((h: Habit) => ({ ...h, completed: false }));
+      }
       return parsed;
     }
     return DEFAULT_HABITS;
@@ -36,7 +41,24 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     localStorage.setItem("warrior_habits", JSON.stringify(habits));
+    const today = new Date().toISOString().split("T")[0];
+    localStorage.setItem("warrior_habits_reset", today);
   }, [habits]);
+
+  // Check for midnight reset while app is open
+  useEffect(() => {
+    const checkReset = () => {
+      const lastReset = localStorage.getItem("warrior_habits_reset");
+      const today = new Date().toISOString().split("T")[0];
+      if (lastReset && lastReset !== today) {
+        resetDaily();
+        localStorage.setItem("warrior_habits_reset", today);
+      }
+    };
+
+    const interval = setInterval(checkReset, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, []);
 
   const addHabit = (text: string) => {
     const newHabit: Habit = {

@@ -136,10 +136,14 @@ export const AlarmProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const playAlarmSound = () => {
     if (!audioRef.current) {
-      audioRef.current = new Audio("https://actions.google.com/sounds/v1/alarms/alarm_clock_beeping.ogg");
+      audioRef.current = new Audio("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3");
       audioRef.current.loop = true;
+      audioRef.current.onerror = (e) => console.error("Alarm audio error:", e);
     }
-    audioRef.current.play().catch(e => console.error("Audio play failed:", e));
+    const playPromise = audioRef.current.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(e => console.warn("Alarm audio play failed (interaction required):", e));
+    }
   };
 
   return (

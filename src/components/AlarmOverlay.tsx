@@ -9,7 +9,7 @@ import WarriorCard from "@/src/components/WarriorCard";
 
 export default function AlarmOverlay() {
   const { isRinging, stopAlarm, solvePuzzle, isPuzzleSolved } = useAlarm();
-  const { addXP, deductXP } = useXP();
+  const { completeTask, deductXP } = useXP();
   const [answer, setAnswer] = useState("");
   const [puzzle, setPuzzle] = useState({ q: "", a: 0 });
   const [error, setError] = useState(false);
@@ -59,7 +59,7 @@ export default function AlarmOverlay() {
     e.preventDefault();
     if (parseInt(answer) === puzzle.a) {
       solvePuzzle();
-      addXP(100); // Reward for breaking the cipher
+      completeTask("alarm_cipher", 100); // Reward for breaking the cipher (once a day)
       // The requirement says "Correct answer stops alarm"
       // We can either wait for the user to click "Silence" or do it automatically.
       // Let's make it automatic after a brief success delay for better UX.

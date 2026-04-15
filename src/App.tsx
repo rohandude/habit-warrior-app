@@ -11,6 +11,8 @@ import AlarmOverlay from "./components/AlarmOverlay";
 
 import { XPProvider } from "./context/XPContext";
 import { HabitProvider } from "./context/HabitContext";
+import { MusicProvider } from "./context/MusicContext";
+import VoiceGreeting from "./components/VoiceGreeting";
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState("home");
@@ -37,12 +39,15 @@ export default function App() {
   return (
     <XPProvider>
       <HabitProvider>
-        <AlarmProvider>
-          <Layout currentScreen={currentScreen} onScreenChange={setCurrentScreen}>
-            {renderScreen()}
-          </Layout>
-          <AlarmOverlay />
-        </AlarmProvider>
+        <MusicProvider>
+          <AlarmProvider>
+            <Layout currentScreen={currentScreen} onScreenChange={setCurrentScreen}>
+              {renderScreen()}
+            </Layout>
+            <AlarmOverlay />
+            <VoiceGreeting />
+          </AlarmProvider>
+        </MusicProvider>
       </HabitProvider>
     </XPProvider>
   );

@@ -10,7 +10,7 @@ import { useXP } from "@/src/context/XPContext";
 
 export default function ChallengeScreen() {
   const { habits, addHabit, toggleHabit, deleteHabit } = useHabits();
-  const { addXP } = useXP();
+  const { completeTask, isTaskCompleted } = useXP();
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
   const [newHabitText, setNewHabitText] = useState("");
   const [showVictory, setShowVictory] = useState(false);
@@ -36,14 +36,26 @@ export default function ChallengeScreen() {
     }
   };
 
-  const handleClaimVictory = () => {
-    const completedCount = habits.filter(h => h.completed).length;
-    if (completedCount > 0) {
-      addXP(completedCount * 25);
-      setShowVictory(true);
-      setTimeout(() => setShowVictory(false), 3000);
+  const handleToggleHabit = (id: string, completed: boolean) => {
+    toggleHabit(id);
+    // If we are marking it as completed, try to award XP
+    if (!completed) {
+      completeTask(`habit_${id}`, 25);
     }
   };
+
+  const handleClaimVictory = () => {
+    const allCompleted = habits.every(h => h.completed);
+    if (allCompleted && habits.length > 0) {
+      if (completeTask("daily_victory_bonus", 100)) {
+        setShowVictory(true);
+        setTimeout(() => setShowVictory(false), 3000);
+      }
+    }
+  };
+
+  const allTasksDone = habits.length > 0 && habits.every(h => h.completed);
+  const isVictoryClaimed = isTaskCompleted("daily_victory_bonus");
 
   return (
     <div className="p-4 space-y-6">
@@ -67,41 +79,51 @@ export default function ChallengeScreen() {
       {/* Task List */}
       <div className="space-y-3">
         <AnimatePresence initial={false}>
-          {habits.map((habit, i) => (
-            <motion.div
-              key={habit.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ delay: i * 0.05 }}
-            >
-              <WarriorCard className="p-0">
-                <div className="flex items-center p-4 gap-4 group">
-                  <Checkbox 
-                    id={habit.id}
-                    checked={habit.completed}
-                    onCheckedChange={() => toggleHabit(habit.id)}
-                    className="h-6 w-6 border-2 border-warrior-red/50 data-[state=checked]:bg-warrior-red data-[state=checked]:text-white"
-                  />
-                  <div className="flex-1">
-                    <label 
-                      htmlFor={habit.id}
-                      className={`text-sm font-bold cursor-pointer transition-all ${habit.completed ? "text-muted-foreground line-through" : "text-white"}`}
+          {habits.map((habit, i) => {
+            const isClaimed = isTaskCompleted(`habit_${habit.id}`);
+            return (
+              <motion.div
+                key={habit.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ delay: i * 0.05 }}
+              >
+                <WarriorCard className="p-0">
+                  <div className="flex items-center p-4 gap-4 group">
+                    <Checkbox 
+                      id={habit.id}
+                      checked={habit.completed}
+                      onCheckedChange={() => handleToggleHabit(habit.id, habit.completed)}
+                      className="h-6 w-6 border-2 border-warrior-red/50 data-[state=checked]:bg-warrior-red data-[state=checked]:text-white"
+                    />
+                    <div className="flex-1">
+                      <label 
+                        htmlFor={habit.id}
+                        className={`text-sm font-bold cursor-pointer transition-all ${habit.completed ? "text-muted-foreground line-through" : "text-white"}`}
+                      >
+                        {habit.text}
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <p className={`text-[10px] font-mono ${isClaimed ? "text-warrior-red line-through opacity-50" : "text-warrior-gold"}`}>
+                          +25 XP
+                        </p>
+                        {isClaimed && (
+                          <span className="text-[8px] bg-warrior-red/20 text-warrior-red px-1 rounded font-bold uppercase">Honor Gained</span>
+                        )}
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => deleteHabit(habit.id)}
+                      className="text-muted-foreground hover:text-warrior-red opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      {habit.text}
-                    </label>
-                    <p className="text-[10px] text-warrior-gold font-mono">+25 XP</p>
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                  <button 
-                    onClick={() => deleteHabit(habit.id)}
-                    className="text-muted-foreground hover:text-warrior-red opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </WarriorCard>
-            </motion.div>
-          ))}
+                </WarriorCard>
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
 
         {/* Add Habit Form */}
@@ -121,13 +143,19 @@ export default function ChallengeScreen() {
       <div className="pt-4">
         <Button 
           onClick={handleClaimVictory}
-          disabled={timeLeft === 0 || !habits.some(h => h.completed)}
-          className="w-full bg-gradient-to-r from-warrior-red to-warrior-orange hover:from-warrior-red/80 hover:to-warrior-orange/80 text-white font-heading py-8 text-lg warrior-glow disabled:opacity-50"
+          disabled={timeLeft === 0 || !allTasksDone || isVictoryClaimed}
+          className={`w-full font-heading py-8 text-lg warrior-glow disabled:opacity-50 ${
+            isVictoryClaimed 
+              ? "bg-warrior-metal text-muted-foreground cursor-not-allowed" 
+              : allTasksDone
+              ? "bg-gradient-to-r from-warrior-red to-warrior-orange hover:from-warrior-red/80 hover:to-warrior-orange/80 text-white"
+              : "bg-warrior-metal/50 text-muted-foreground"
+          }`}
         >
-          CLAIM VICTORY
+          {isVictoryClaimed ? "VICTORY SECURED" : allTasksDone ? "CLAIM DAILY BONUS (+100 XP)" : "COMPLETE ALL TASKS"}
         </Button>
         <p className="text-[10px] text-center text-muted-foreground mt-4 uppercase tracking-widest">
-          Failure results in streak reset
+          Finish all rites to claim the ultimate honor
         </p>
       </div>
 
@@ -141,8 +169,8 @@ export default function ChallengeScreen() {
           >
             <div className="bg-warrior-surface border-2 border-warrior-gold p-8 rounded-2xl shadow-[0_0_50px_rgba(226,192,141,0.3)] text-center space-y-4">
               <Trophy size={64} className="text-warrior-gold mx-auto animate-bounce" />
-              <h3 className="text-3xl font-heading text-white">VICTORY SECURED</h3>
-              <p className="text-warrior-gold font-bold uppercase tracking-widest">Honor Gained: +{habits.filter(h => h.completed).length * 25} XP</p>
+              <h3 className="text-3xl font-heading text-white">ULTIMATE VICTORY</h3>
+              <p className="text-warrior-gold font-bold uppercase tracking-widest">Daily Bonus Gained: +100 XP</p>
             </div>
           </motion.div>
         )}

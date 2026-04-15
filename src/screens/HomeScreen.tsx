@@ -3,20 +3,26 @@ import WarriorCard from "@/src/components/WarriorCard";
 import WarriorAvatar from "@/src/components/WarriorAvatar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Flame, Sword, Trophy, Zap, Clock, Shield, AlertCircle } from "lucide-react";
+import { Flame, Sword, Trophy, Zap, Clock, Shield, AlertCircle, Play, Pause, Volume2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useAlarm } from "@/src/context/AlarmContext";
 import { useXP } from "@/src/context/XPContext";
+import { useMusic } from "@/src/context/MusicContext";
+import { Slider } from "@/components/ui/slider";
 
 export default function HomeScreen({ onNavigate }: { onNavigate?: (screen: string) => void }) {
   const [isCelebrating, setIsCelebrating] = useState(false);
   const { isAlarmActive, alarmTime } = useAlarm();
-  const { level, xp, addXP } = useXP();
+  const { level, xp, streak, completeTask, isTaskCompleted } = useXP();
+  const { isPlaying, volume, togglePlay, setVolume } = useMusic();
+
+  const isReadyCompleted = isTaskCompleted("morning_ready");
 
   const handleReady = () => {
-    setIsCelebrating(true);
-    addXP(50); // Reward for being ready
-    setTimeout(() => setIsCelebrating(false), 2000);
+    if (completeTask("morning_ready", 10)) { // Small reward for answering the call
+      setIsCelebrating(true);
+      setTimeout(() => setIsCelebrating(false), 2000);
+    }
   };
 
   return (
@@ -32,7 +38,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate?: (screen: strin
           <div className="space-y-1">
             <p className="text-[11px] uppercase tracking-[2px] text-[#888]">Unstoppable Streak</p>
             <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-heading text-warrior-red">34</span>
+              <span className="text-4xl font-heading text-warrior-red">{streak}</span>
               <span className="text-xs text-[#555] font-bold uppercase">Days</span>
             </div>
           </div>
@@ -75,21 +81,28 @@ export default function HomeScreen({ onNavigate }: { onNavigate?: (screen: strin
       </AnimatePresence>
 
       {/* Morning Challenge Card */}
-      <WarriorCard title="Next Rite of Passage" glow>
+      <WarriorCard title="The Call to Arms" glow>
         <div className="space-y-4 text-center">
           <div className="space-y-1">
-            <h2 className="text-3xl font-heading text-white tracking-widest">50 Combat Push-ups</h2>
+            <h2 className="text-3xl font-heading text-white tracking-widest">Answer the Call</h2>
             <div className="text-[100px] font-heading leading-none text-warrior-red drop-shadow-[0_0_30px_rgba(255,49,49,0.4)]">
-              04:59
+              {isReadyCompleted ? "DONE" : "NOW"}
             </div>
-            <p className="text-[11px] uppercase tracking-[2px] text-[#888]">Countdown to Glory • NO SNOOZE</p>
+            <p className="text-[11px] uppercase tracking-[2px] text-[#888]">
+              {isReadyCompleted ? "Ritual Commenced • Proceed to Battle" : "The fire awaits your presence"}
+            </p>
           </div>
 
           <Button 
             onClick={handleReady}
-            className="w-full bg-gradient-to-b from-warrior-red to-[#8b0000] hover:from-warrior-red/80 hover:to-[#8b0000]/80 text-white font-heading text-2xl py-8 warrior-btn warrior-glow"
+            disabled={isReadyCompleted}
+            className={`w-full font-heading text-2xl py-8 warrior-btn ${
+              isReadyCompleted 
+                ? "bg-warrior-metal text-muted-foreground cursor-not-allowed" 
+                : "bg-gradient-to-b from-warrior-red to-[#8b0000] hover:from-warrior-red/80 hover:to-[#8b0000]/80 text-white warrior-glow"
+            }`}
           >
-            I AM READY
+            {isReadyCompleted ? "RITUAL STARTED" : "I AM READY"}
           </Button>
         </div>
       </WarriorCard>
@@ -118,6 +131,41 @@ export default function HomeScreen({ onNavigate }: { onNavigate?: (screen: strin
           </div>
           <p className="text-[11px] text-center text-[#666] italic leading-relaxed">"Steel is forged in the fire of daily discipline."</p>
         </div>
+      </WarriorCard>
+
+      {/* War Drums (Music) Section */}
+      <WarriorCard title="War Drums">
+        <div className="flex items-center gap-4">
+          <Button 
+            onClick={togglePlay}
+            className={`h-12 w-12 rounded-full flex items-center justify-center transition-all ${
+              isPlaying 
+                ? "bg-warrior-red text-white warrior-glow" 
+                : "bg-warrior-metal/30 text-muted-foreground border border-warrior-metal"
+            }`}
+          >
+            {isPlaying ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
+          </Button>
+          
+          <div className="flex-1 space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] font-bold text-white uppercase tracking-widest flex items-center gap-1">
+                <Volume2 size={12} /> Intensity
+              </span>
+              <span className="text-[10px] font-mono text-warrior-gold">{Math.round(volume * 100)}%</span>
+            </div>
+            <Slider 
+              value={[isNaN(volume) ? 50 : volume * 100]} 
+              onValueChange={(vals) => setVolume(vals[0] / 100)} 
+              max={100} 
+              step={1}
+              className="[&_[role=slider]]:bg-warrior-red [&_[role=slider]]:border-warrior-red"
+            />
+          </div>
+        </div>
+        <p className="text-[9px] text-center text-[#555] mt-3 uppercase tracking-tighter">
+          {isPlaying ? "The drums of war echo in your soul" : "Silence before the storm"}
+        </p>
       </WarriorCard>
 
       {/* Quick Actions */}
