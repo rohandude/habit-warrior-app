@@ -33,13 +33,21 @@ const XPContext = createContext<XPContextType | undefined>(undefined);
 
 export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [xp, setXP] = useState<number>(() => {
-    const saved = localStorage.getItem("warrior_xp");
-    return saved ? parseInt(saved) : 0;
+    try {
+      const saved = localStorage.getItem("warrior_xp");
+      return saved ? parseInt(saved, 10) || 0 : 0;
+    } catch (e) {
+      return 0;
+    }
   });
 
   const [streak, setStreak] = useState<number>(() => {
-    const saved = localStorage.getItem("warrior_streak");
-    return saved ? parseInt(saved) : 0;
+    try {
+      const saved = localStorage.getItem("warrior_streak");
+      return saved ? parseInt(saved, 10) || 0 : 0;
+    } catch (e) {
+      return 0;
+    }
   });
 
   const [lastCheckIn, setLastCheckIn] = useState<string | null>(() => {
@@ -47,26 +55,50 @@ export const XPProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   });
 
   const [completedTasks, setCompletedTasks] = useState<Record<string, string>>(() => {
-    const saved = localStorage.getItem("warrior_completed_tasks");
-    return saved ? JSON.parse(saved) : {};
+    try {
+      const saved = localStorage.getItem("warrior_completed_tasks");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return typeof parsed === 'object' && parsed !== null ? parsed : {};
+      }
+    } catch (e) {
+      console.error("WarriorApp: Failed to load completed tasks:", e);
+    }
+    return {};
   });
 
   useEffect(() => {
-    localStorage.setItem("warrior_xp", xp.toString());
+    try {
+      localStorage.setItem("warrior_xp", xp.toString());
+    } catch (e) {
+      console.error("WarriorApp: Failed to save XP:", e);
+    }
   }, [xp]);
 
   useEffect(() => {
-    localStorage.setItem("warrior_streak", streak.toString());
+    try {
+      localStorage.setItem("warrior_streak", streak.toString());
+    } catch (e) {
+      console.error("WarriorApp: Failed to save streak:", e);
+    }
   }, [streak]);
 
   useEffect(() => {
-    if (lastCheckIn) {
-      localStorage.setItem("warrior_last_checkin", lastCheckIn);
+    try {
+      if (lastCheckIn) {
+        localStorage.setItem("warrior_last_checkin", lastCheckIn);
+      }
+    } catch (e) {
+      console.error("WarriorApp: Failed to save last check-in:", e);
     }
   }, [lastCheckIn]);
 
   useEffect(() => {
-    localStorage.setItem("warrior_completed_tasks", JSON.stringify(completedTasks));
+    try {
+      localStorage.setItem("warrior_completed_tasks", JSON.stringify(completedTasks));
+    } catch (e) {
+      console.error("WarriorApp: Failed to save completed tasks:", e);
+    }
   }, [completedTasks]);
 
   // Streak Logic

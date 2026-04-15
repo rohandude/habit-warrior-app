@@ -28,21 +28,36 @@ export default function HomeScreen({ onNavigate }: { onNavigate?: (screen: strin
   const RankIcon = rankStyle.icon;
 
   const handleCompleteHabit = (id: string, type: HabitType, targetValue?: number) => {
+    if (isTaskCompleted(`habit_${id}`)) return;
+
     const achieved = habitInputs[id] ? Number(habitInputs[id]) : undefined;
     completeHabit(id, achieved);
     
     let xpAmount = 0;
     if (type === "simple") {
-      xpAmount = 25;
+      xpAmount = 10;
     } else if (type === "target" && targetValue !== undefined && achieved !== undefined) {
       if (achieved >= targetValue) {
-        xpAmount = achieved > targetValue ? 50 : 25;
+        xpAmount = achieved > targetValue ? 20 : 10;
       }
     }
 
     if (xpAmount > 0) {
-      completeTask(`habit_${id}`, xpAmount);
-      playSfx("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3");
+      const success = completeTask(`habit_${id}`, xpAmount);
+      if (success) {
+        playSfx("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3");
+        
+        // Check if this was the last habit for the day
+        const updatedHabits = todayHabits.map(h => h.id === id ? { ...h, completed: true } : h);
+        const allDone = updatedHabits.every(h => h.completed || (h.type === "target" && h.result !== undefined));
+        if (allDone && updatedHabits.length > 0) {
+          const bonusSuccess = completeTask("daily_mastery_bonus", 50);
+          if (bonusSuccess) {
+            setIsCelebrating(true);
+            setTimeout(() => setIsCelebrating(false), 3000);
+          }
+        }
+      }
     }
   };
 
@@ -98,6 +113,36 @@ export default function HomeScreen({ onNavigate }: { onNavigate?: (screen: strin
         {/* Smoke/Fog Effect */}
         <div className="absolute bottom-0 left-0 right-0 h-64 bg-gradient-to-t from-black/60 to-transparent blur-3xl opacity-50" />
       </div>
+
+      {/* Celebration Overlay */}
+      <AnimatePresence>
+        {isCelebrating && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.5, y: 50 }}
+              animate={{ scale: 1, y: 0 }}
+              className="text-center space-y-4 p-8"
+            >
+              <div className="relative inline-block">
+                <Trophy size={80} className="text-warrior-gold animate-bounce" />
+                <motion.div
+                  animate={{ scale: [1, 1.5, 1], opacity: [0, 1, 0] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="absolute inset-0 bg-warrior-gold/20 blur-2xl rounded-full"
+                />
+              </div>
+              <h2 className="text-4xl font-heading text-white tracking-tighter">DAILY MASTERY</h2>
+              <p className="text-warrior-gold font-mono text-xl">+50 XP BONUS</p>
+              <p className="text-muted-foreground text-xs uppercase tracking-[0.3em]">All Rites Completed</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="relative z-10 p-4 space-y-8">
         {/* Warrior Stage */}
@@ -250,7 +295,10 @@ export default function HomeScreen({ onNavigate }: { onNavigate?: (screen: strin
                                 </div>
                               )}
                               {!isCompleted && habit.type === "simple" && (
-                                <span className="text-[10px] font-mono text-warrior-gold">+25 XP</span>
+                                <span className="text-[10px] font-mono text-warrior-gold">+10 XP</span>
+                              )}
+                              {!isCompleted && habit.type === "target" && (
+                                <span className="text-[10px] font-mono text-warrior-gold">+10-20 XP</span>
                               )}
                             </div>
                           </div>
@@ -283,9 +331,12 @@ export default function HomeScreen({ onNavigate }: { onNavigate?: (screen: strin
                             />
                             <Button 
                               onClick={() => handleCompleteHabit(habit.id, "target", habit.targetValue)}
-                              className="bg-warrior-red hover:bg-warrior-red/80 h-10 px-6 font-bold text-[10px] uppercase tracking-widest warrior-glow"
+                              disabled={isCompleted}
+                              className={`h-10 px-6 font-bold text-[10px] uppercase tracking-widest warrior-glow ${
+                                isCompleted ? "bg-muted-foreground" : "bg-warrior-red hover:bg-warrior-red/80"
+                              }`}
                             >
-                              Slay
+                              {isCompleted ? "SLAIN" : "Slay"}
                             </Button>
                           </motion.div>
                         )}

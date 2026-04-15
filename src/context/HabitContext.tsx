@@ -20,6 +20,7 @@ export interface Habit {
   history: Record<string, HabitHistoryEntry>;
   achieved?: number; // Today's achieved value
   result?: HabitResult; // Today's result
+  lastCompletedDate?: string; // YYYY-MM-DD
 }
 
 interface HabitStats {
@@ -29,10 +30,10 @@ interface HabitStats {
 
 interface HabitContextType {
   habits: Habit[];
-  addHabit: (text: string, days: number[], type: HabitType, targetValue?: number, unit?: string) => void;
+  addHabit: (text: string, days: (number | string)[], type: HabitType, targetValue?: number, unit?: string) => void;
   completeHabit: (id: string, achieved?: number) => void;
   deleteHabit: (id: string) => void;
-  updateHabit: (id: string, text: string, days: number[], type: HabitType, targetValue?: number, unit?: string) => void;
+  updateHabit: (id: string, text: string, days: (number | string)[], type: HabitType, targetValue?: number, unit?: string) => void;
   resetDaily: () => void;
   getTodayHabits: () => Habit[];
   getHabitStats: (id: string) => HabitStats;
@@ -46,63 +47,79 @@ const DEFAULT_HABITS: Habit[] = [
   { id: "3", text: "Ready: Gear Up & Stretch", completed: false, days: [0, 1, 2, 3, 4, 5, 6], type: "simple", history: {} },
 ];
 
+const DAY_NAMES = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+
 export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [habits, setHabits] = useState<Habit[]>(() => {
-    const saved = localStorage.getItem("warrior_habits");
-    const lastReset = localStorage.getItem("warrior_habits_reset");
-    const today = new Date().toISOString().split("T")[0];
+    try {
+      const saved = localStorage.getItem("warrior_habits");
+      const today = new Date().toISOString().split("T")[0];
 
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      // Ensure all habits have the 'days' and 'history' property (migration)
-      const migrated = parsed.map((h: any) => ({
-        ...h,
-        days: h.days || [0, 1, 2, 3, 4, 5, 6],
-        type: h.type || "simple",
-        history: h.history || {}
-      }));
-
-      if (lastReset !== today) {
-        // New day, reset completion and today's values
-        return migrated.map((h: Habit) => ({ 
-          ...h, 
-          completed: false, 
-          achieved: undefined, 
-          result: undefined 
-        }));
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          // Ensure all habits have the 'days' and 'history' property (migration)
+          return parsed.map((h: any) => {
+            const isDifferentDay = h.lastCompletedDate !== today;
+            return {
+              ...h,
+              days: h.days || [0, 1, 2, 3, 4, 5, 6],
+              type: h.type || "simple",
+              history: h.history || {},
+              completed: isDifferentDay ? false : h.completed,
+              achieved: isDifferentDay ? undefined : h.achieved,
+              result: isDifferentDay ? undefined : h.result,
+              lastCompletedDate: h.lastCompletedDate || undefined
+            };
+          });
+        }
       }
-      return migrated;
+    } catch (error) {
+      console.error("WarriorApp: Failed to load habits from storage:", error);
     }
     return DEFAULT_HABITS;
   });
 
+  const normalizeDay = (day: string | number): number => {
+    if (typeof day === "number") return day % 7;
+    const normalized = day.toLowerCase().trim();
+    const index = DAY_NAMES.indexOf(normalized);
+    return index !== -1 ? index : 0;
+  };
+
   useEffect(() => {
-    localStorage.setItem("warrior_habits", JSON.stringify(habits));
-    const today = new Date().toISOString().split("T")[0];
-    localStorage.setItem("warrior_habits_reset", today);
+    try {
+      localStorage.setItem("warrior_habits", JSON.stringify(habits));
+      const today = new Date().toISOString().split("T")[0];
+      localStorage.setItem("warrior_habits_reset", today);
+    } catch (error) {
+      console.error("WarriorApp: Failed to save habits to storage:", error);
+    }
   }, [habits]);
 
   // Check for midnight reset while app is open
   useEffect(() => {
     const checkReset = () => {
-      const lastReset = localStorage.getItem("warrior_habits_reset");
       const today = new Date().toISOString().split("T")[0];
-      if (lastReset && lastReset !== today) {
-        resetDaily();
-        localStorage.setItem("warrior_habits_reset", today);
-      }
+      setHabits(prev => prev.map(h => {
+        if (h.lastCompletedDate && h.lastCompletedDate !== today && h.completed) {
+          return { ...h, completed: false, achieved: undefined, result: undefined };
+        }
+        return h;
+      }));
     };
 
     const interval = setInterval(checkReset, 60000); // Check every minute
     return () => clearInterval(interval);
   }, []);
 
-  const addHabit = (text: string, days: number[], type: HabitType, targetValue?: number, unit?: string) => {
+  const addHabit = (text: string, days: (number | string)[], type: HabitType, targetValue?: number, unit?: string) => {
+    const normalizedDays = days.map(normalizeDay);
     const newHabit: Habit = {
       id: Date.now().toString(),
       text,
       completed: false,
-      days: days.length > 0 ? days : [0, 1, 2, 3, 4, 5, 6],
+      days: normalizedDays.length > 0 ? normalizedDays : [0, 1, 2, 3, 4, 5, 6],
       type,
       targetValue,
       unit,
@@ -115,14 +132,16 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const today = new Date().toISOString().split("T")[0];
     setHabits(prev => prev.map(h => {
       if (h.id === id) {
+        // Prevent multiple completions per day if already completed
+        if (h.completed && h.lastCompletedDate === today) return h;
+
         let result: HabitResult | undefined;
         let completed = true;
 
         if (h.type === "target" && h.targetValue !== undefined && achieved !== undefined) {
           if (achieved < h.targetValue) {
             result = "fail";
-            completed = false; // Still marked as "attempted" but not "completed" for XP purposes?
-            // Actually user says achieved < target -> no XP.
+            completed = false;
           } else if (achieved === h.targetValue) {
             result = "pass";
             completed = true;
@@ -143,6 +162,7 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           completed,
           achieved,
           result,
+          lastCompletedDate: today,
           history: {
             ...h.history,
             [today]: historyEntry
@@ -157,8 +177,9 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setHabits(prev => prev.filter(h => h.id !== id));
   };
 
-  const updateHabit = (id: string, text: string, days: number[], type: HabitType, targetValue?: number, unit?: string) => {
-    setHabits(prev => prev.map(h => h.id === id ? { ...h, text, days, type, targetValue, unit } : h));
+  const updateHabit = (id: string, text: string, days: (number | string)[], type: HabitType, targetValue?: number, unit?: string) => {
+    const normalizedDays = days.map(normalizeDay);
+    setHabits(prev => prev.map(h => h.id === id ? { ...h, text, days: normalizedDays, type, targetValue, unit } : h));
   };
 
   const resetDaily = () => {
@@ -171,8 +192,8 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const getTodayHabits = () => {
-    const today = new Date().getDay();
-    return habits.filter(h => h.days.includes(today));
+    const todayIndex = new Date().getDay();
+    return habits.filter(h => h.days.includes(todayIndex));
   };
 
   const getHabitStats = (id: string): HabitStats => {
