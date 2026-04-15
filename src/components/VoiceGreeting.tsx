@@ -1,52 +1,23 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useXP } from "@/src/context/XPContext";
+import { useAudioManager } from "@/src/context/AudioManagerContext";
 
 export default function VoiceGreeting() {
   const { currentRank } = useXP();
+  const { speak } = useAudioManager();
   const [hasPlayed, setHasPlayed] = useState(false);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const speakGreeting = useCallback(() => {
     if (hasPlayed) return;
 
-    // Extract name from context or hardcode as requested
     const name = "Rohan";
     const text = `Welcome back ${name}, you are a ${currentRank.name}`;
     
-    // Stop any ongoing speech
-    window.speechSynthesis.cancel();
-
-    utteranceRef.current = new SpeechSynthesisUtterance(text);
-    
-    const findVoice = () => {
-      const availableVoices = window.speechSynthesis.getVoices();
-      return availableVoices.find(v => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural'))) || 
-             availableVoices.find(v => v.lang.startsWith('en')) || 
-             availableVoices[0];
-    };
-
-    const voice = findVoice();
-    if (voice) {
-      utteranceRef.current.voice = voice;
-    }
-
-    utteranceRef.current.rate = 0.95;
-    utteranceRef.current.pitch = 1;
-
-    utteranceRef.current.onend = () => {
-      utteranceRef.current = null;
-    };
-
-    window.speechSynthesis.speak(utteranceRef.current);
+    speak(text);
     setHasPlayed(true);
-  }, [currentRank.name, hasPlayed]);
+  }, [currentRank.name, hasPlayed, speak]);
 
   useEffect(() => {
-    // Handle voices loading asynchronously
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-      window.speechSynthesis.onvoiceschanged = speakGreeting;
-    }
-
     // Attempt to speak on mount
     speakGreeting();
 

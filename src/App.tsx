@@ -11,7 +11,7 @@ import AlarmOverlay from "./components/AlarmOverlay";
 
 import { XPProvider } from "./context/XPContext";
 import { HabitProvider } from "./context/HabitContext";
-import { MusicProvider } from "./context/MusicContext";
+import { AudioManagerProvider } from "./context/AudioManagerContext";
 import VoiceGreeting from "./components/VoiceGreeting";
 
 export default function App() {
@@ -39,7 +39,7 @@ export default function App() {
   return (
     <XPProvider>
       <HabitProvider>
-        <MusicProvider>
+        <AudioManagerProvider>
           <AlarmProvider>
             <Layout currentScreen={currentScreen} onScreenChange={setCurrentScreen}>
               {renderScreen()}
@@ -47,7 +47,7 @@ export default function App() {
             <AlarmOverlay />
             <VoiceGreeting />
           </AlarmProvider>
-        </MusicProvider>
+        </AudioManagerProvider>
       </HabitProvider>
     </XPProvider>
   );

@@ -7,21 +7,33 @@ import { Flame, Sword, Trophy, Zap, Clock, Shield, AlertCircle, Play, Pause, Vol
 import { motion, AnimatePresence } from "motion/react";
 import { useAlarm } from "@/src/context/AlarmContext";
 import { useXP } from "@/src/context/XPContext";
-import { useMusic } from "@/src/context/MusicContext";
+import { useAudioManager } from "@/src/context/AudioManagerContext";
+import { useHabits } from "@/src/context/HabitContext";
 import { Slider } from "@/components/ui/slider";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function HomeScreen({ onNavigate }: { onNavigate?: (screen: string) => void }) {
   const [isCelebrating, setIsCelebrating] = useState(false);
   const { isAlarmActive, alarmTime } = useAlarm();
   const { level, xp, streak, completeTask, isTaskCompleted } = useXP();
-  const { isPlaying, volume, togglePlay, setVolume } = useMusic();
+  const { isBgmPlaying, bgmVolume, toggleBgm, setBgmVolume, playSfx } = useAudioManager();
+  const { getTodayHabits, toggleHabit } = useHabits();
 
   const isReadyCompleted = isTaskCompleted("morning_ready");
+  const todayHabits = getTodayHabits();
 
   const handleReady = () => {
     if (completeTask("morning_ready", 10)) { // Small reward for answering the call
       setIsCelebrating(true);
       setTimeout(() => setIsCelebrating(false), 2000);
+    }
+  };
+
+  const handleToggleHabit = (id: string, completed: boolean) => {
+    toggleHabit(id);
+    if (!completed) {
+      completeTask(`habit_${id}`, 25);
+      playSfx("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3");
     }
   };
 
@@ -107,6 +119,54 @@ export default function HomeScreen({ onNavigate }: { onNavigate?: (screen: strin
         </div>
       </WarriorCard>
 
+      {/* Today's Habits Section */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between px-1">
+          <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Today's Objectives</h3>
+          <span className="text-[10px] font-mono text-warrior-gold">{todayHabits.filter(h => h.completed).length}/{todayHabits.length} DONE</span>
+        </div>
+        
+        <div className="space-y-2">
+          {todayHabits.length > 0 ? (
+            todayHabits.map((habit) => {
+              const isClaimed = isTaskCompleted(`habit_${habit.id}`);
+              return (
+                <WarriorCard key={habit.id} className="p-0">
+                  <div className="flex items-center p-3 gap-3">
+                    <Checkbox 
+                      checked={habit.completed}
+                      onCheckedChange={() => handleToggleHabit(habit.id, habit.completed)}
+                      disabled={habit.completed}
+                      className="h-5 w-5 border-2 border-warrior-red/50 data-[state=checked]:bg-warrior-red data-[state=checked]:text-white"
+                    />
+                    <div className="flex-1">
+                      <p className={`text-xs font-bold ${habit.completed ? "text-muted-foreground line-through" : "text-white"}`}>
+                        {habit.text}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[9px] font-mono ${isClaimed ? "text-warrior-red opacity-50" : "text-warrior-gold"}`}>
+                          +25 XP
+                        </span>
+                        {isClaimed && (
+                          <span className="text-[7px] bg-warrior-red/20 text-warrior-red px-1 rounded font-bold uppercase">Honor Gained</span>
+                        )}
+                      </div>
+                    </div>
+                    {habit.completed && (
+                      <Zap size={14} className="text-warrior-orange animate-pulse" />
+                    )}
+                  </div>
+                </WarriorCard>
+              );
+            })
+          ) : (
+            <p className="text-[10px] text-center text-muted-foreground py-4 border border-dashed border-warrior-metal rounded-xl">
+              No objectives scheduled for today. Rest and recover, Warrior.
+            </p>
+          )}
+        </div>
+      </div>
+
       {/* 100 Day Challenge Progress */}
       <WarriorCard title="The 100-Day Conquest">
         <div className="space-y-3">
@@ -137,14 +197,14 @@ export default function HomeScreen({ onNavigate }: { onNavigate?: (screen: strin
       <WarriorCard title="War Drums">
         <div className="flex items-center gap-4">
           <Button 
-            onClick={togglePlay}
+            onClick={toggleBgm}
             className={`h-12 w-12 rounded-full flex items-center justify-center transition-all ${
-              isPlaying 
+              isBgmPlaying 
                 ? "bg-warrior-red text-white warrior-glow" 
                 : "bg-warrior-metal/30 text-muted-foreground border border-warrior-metal"
             }`}
           >
-            {isPlaying ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
+            {isBgmPlaying ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
           </Button>
           
           <div className="flex-1 space-y-2">
@@ -152,11 +212,11 @@ export default function HomeScreen({ onNavigate }: { onNavigate?: (screen: strin
               <span className="text-[10px] font-bold text-white uppercase tracking-widest flex items-center gap-1">
                 <Volume2 size={12} /> Intensity
               </span>
-              <span className="text-[10px] font-mono text-warrior-gold">{Math.round(volume * 100)}%</span>
+              <span className="text-[10px] font-mono text-warrior-gold">{Math.round(bgmVolume * 100)}%</span>
             </div>
             <Slider 
-              value={[isNaN(volume) ? 50 : volume * 100]} 
-              onValueChange={(vals) => setVolume(vals[0] / 100)} 
+              value={[isNaN(bgmVolume) ? 50 : bgmVolume * 100]} 
+              onValueChange={(vals) => setBgmVolume(vals[0] / 100)} 
               max={100} 
               step={1}
               className="[&_[role=slider]]:bg-warrior-red [&_[role=slider]]:border-warrior-red"
@@ -164,7 +224,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate?: (screen: strin
           </div>
         </div>
         <p className="text-[9px] text-center text-[#555] mt-3 uppercase tracking-tighter">
-          {isPlaying ? "The drums of war echo in your soul" : "Silence before the storm"}
+          {isBgmPlaying ? "The drums of war echo in your soul" : "Silence before the storm"}
         </p>
       </WarriorCard>
 

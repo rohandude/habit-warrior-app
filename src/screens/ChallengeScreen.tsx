@@ -7,13 +7,36 @@ import { Clock, AlertCircle, Sword, Flame, Plus, Trash2, Trophy } from "lucide-r
 import { motion, AnimatePresence } from "motion/react";
 import { useHabits } from "@/src/context/HabitContext";
 import { useXP } from "@/src/context/XPContext";
+import { useAudioManager } from "@/src/context/AudioManagerContext";
+import { BarChart, Bar, ResponsiveContainer, Cell, XAxis, YAxis, Tooltip } from "recharts";
 
 export default function ChallengeScreen() {
-  const { habits, addHabit, toggleHabit, deleteHabit } = useHabits();
+  const { habits, addHabit, toggleHabit, deleteHabit, getHabitStats } = useHabits();
   const { completeTask, isTaskCompleted } = useXP();
+  const { playSfx } = useAudioManager();
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
   const [newHabitText, setNewHabitText] = useState("");
+  const [selectedDays, setSelectedDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
   const [showVictory, setShowVictory] = useState(false);
+  const [expandedHabit, setExpandedHabit] = useState<string | null>(null);
+
+  const DAYS = [
+    { id: 1, label: "M" },
+    { id: 2, label: "T" },
+    { id: 3, label: "W" },
+    { id: 4, label: "T" },
+    { id: 5, label: "F" },
+    { id: 6, label: "S" },
+    { id: 0, label: "S" },
+  ];
+
+  const toggleDay = (dayId: number) => {
+    setSelectedDays(prev => 
+      prev.includes(dayId) 
+        ? prev.filter(d => d !== dayId) 
+        : [...prev, dayId]
+    );
+  };
   
   useEffect(() => {
     const timer = setInterval(() => {
@@ -31,8 +54,9 @@ export default function ChallengeScreen() {
   const handleAddHabit = (e: React.FormEvent) => {
     e.preventDefault();
     if (newHabitText.trim()) {
-      addHabit(newHabitText.trim());
+      addHabit(newHabitText.trim(), selectedDays);
       setNewHabitText("");
+      setSelectedDays([0, 1, 2, 3, 4, 5, 6]);
     }
   };
 
@@ -41,6 +65,7 @@ export default function ChallengeScreen() {
     // If we are marking it as completed, try to award XP
     if (!completed) {
       completeTask(`habit_${id}`, 25);
+      playSfx("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"); // Short drum beat
     }
   };
 
@@ -48,6 +73,7 @@ export default function ChallengeScreen() {
     const allCompleted = habits.every(h => h.completed);
     if (allCompleted && habits.length > 0) {
       if (completeTask("daily_victory_bonus", 100)) {
+        playSfx("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3"); // Victory drum
         setShowVictory(true);
         setTimeout(() => setShowVictory(false), 3000);
       }
@@ -56,6 +82,7 @@ export default function ChallengeScreen() {
 
   const allTasksDone = habits.length > 0 && habits.every(h => h.completed);
   const isVictoryClaimed = isTaskCompleted("daily_victory_bonus");
+  const today = new Date().getDay();
 
   return (
     <div className="p-4 space-y-6">
@@ -76,11 +103,53 @@ export default function ChallengeScreen() {
         </div>
       </div>
 
+      {/* Add Habit Form */}
+      <WarriorCard title="New Objective" className="p-4">
+        <form onSubmit={handleAddHabit} className="space-y-4">
+          <Input 
+            value={newHabitText}
+            onChange={(e) => setNewHabitText(e.target.value)}
+            placeholder="Enter habit name..."
+            className="bg-black/40 border-warrior-metal text-sm h-12"
+          />
+          
+          <div className="flex justify-between gap-1">
+            {DAYS.map((day) => (
+              <button
+                key={day.id}
+                type="button"
+                onClick={() => toggleDay(day.id)}
+                className={`flex-1 h-10 rounded-lg text-[10px] font-bold transition-all border ${
+                  selectedDays.includes(day.id)
+                    ? "bg-warrior-red border-warrior-red text-white warrior-glow"
+                    : "bg-warrior-metal/30 border-warrior-metal text-muted-foreground"
+                }`}
+              >
+                {day.label}
+              </button>
+            ))}
+          </div>
+
+          <Button type="submit" className="w-full bg-warrior-metal hover:bg-warrior-red h-12 font-heading tracking-widest">
+            <Plus size={18} className="mr-2" /> ADD HABIT
+          </Button>
+        </form>
+      </WarriorCard>
+
       {/* Task List */}
       <div className="space-y-3">
+        <div className="flex items-center justify-between px-1">
+          <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Active Objectives</h3>
+          <span className="text-[10px] font-mono text-warrior-gold">{habits.length} TOTAL</span>
+        </div>
+        
         <AnimatePresence initial={false}>
           {habits.map((habit, i) => {
             const isClaimed = isTaskCompleted(`habit_${habit.id}`);
+            const isActiveToday = habit.days.includes(today);
+            const stats = getHabitStats(habit.id);
+            const isExpanded = expandedHabit === habit.id;
+            
             return (
               <motion.div
                 key={habit.id}
@@ -89,55 +158,108 @@ export default function ChallengeScreen() {
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ delay: i * 0.05 }}
               >
-                <WarriorCard className="p-0">
-                  <div className="flex items-center p-4 gap-4 group">
-                    <Checkbox 
-                      id={habit.id}
-                      checked={habit.completed}
-                      onCheckedChange={() => handleToggleHabit(habit.id, habit.completed)}
-                      className="h-6 w-6 border-2 border-warrior-red/50 data-[state=checked]:bg-warrior-red data-[state=checked]:text-white"
-                    />
-                    <div className="flex-1">
-                      <label 
-                        htmlFor={habit.id}
-                        className={`text-sm font-bold cursor-pointer transition-all ${habit.completed ? "text-muted-foreground line-through" : "text-white"}`}
-                      >
-                        {habit.text}
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <p className={`text-[10px] font-mono ${isClaimed ? "text-warrior-red line-through opacity-50" : "text-warrior-gold"}`}>
-                          +25 XP
-                        </p>
-                        {isClaimed && (
-                          <span className="text-[8px] bg-warrior-red/20 text-warrior-red px-1 rounded font-bold uppercase">Honor Gained</span>
-                        )}
+                <WarriorCard className={`p-0 ${!isActiveToday ? "opacity-40" : ""}`}>
+                  <div className="p-4 space-y-4">
+                    <div className="flex items-center gap-4 group">
+                      <Checkbox 
+                        id={habit.id}
+                        checked={habit.completed}
+                        onCheckedChange={() => handleToggleHabit(habit.id, habit.completed)}
+                        disabled={!isActiveToday}
+                        className="h-6 w-6 border-2 border-warrior-red/50 data-[state=checked]:bg-warrior-red data-[state=checked]:text-white"
+                      />
+                      <div className="flex-1" onClick={() => setExpandedHabit(isExpanded ? null : habit.id)}>
+                        <div className="flex items-center gap-2">
+                          <label 
+                            htmlFor={habit.id}
+                            className={`text-sm font-bold cursor-pointer transition-all ${habit.completed ? "text-muted-foreground line-through" : "text-white"}`}
+                          >
+                            {habit.text}
+                          </label>
+                          {!isActiveToday && (
+                            <span className="text-[8px] bg-white/10 text-white/40 px-1 rounded uppercase font-bold">Inactive Today</span>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <p className={`text-[10px] font-mono ${isClaimed ? "text-warrior-red line-through opacity-50" : "text-warrior-gold"}`}>
+                              +25 XP
+                            </p>
+                            {isClaimed && (
+                              <span className="text-[8px] bg-warrior-red/20 text-warrior-red px-1 rounded font-bold uppercase">Honor Gained</span>
+                            )}
+                          </div>
+                          <span className="text-[9px] font-bold text-warrior-orange uppercase tracking-tighter">
+                            {stats.completionRate}% Mastery
+                          </span>
+                        </div>
                       </div>
+                      <button 
+                        onClick={() => deleteHabit(habit.id)}
+                        className="text-muted-foreground hover:text-warrior-red opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
-                    <button 
-                      onClick={() => deleteHabit(habit.id)}
-                      className="text-muted-foreground hover:text-warrior-red opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+
+                    {/* Weekly Progress Graph */}
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden pt-2 border-t border-warrior-metal/30"
+                        >
+                          <div className="h-24 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={stats.weeklyData}>
+                                <Bar dataKey="completed" radius={[2, 2, 0, 0]}>
+                                  {stats.weeklyData.map((entry, index) => (
+                                    <Cell 
+                                      key={`cell-${index}`} 
+                                      fill={entry.completed ? "#ff3131" : "#222"} 
+                                      className={entry.completed ? "warrior-glow" : ""}
+                                    />
+                                  ))}
+                                </Bar>
+                                <XAxis 
+                                  dataKey="date" 
+                                  hide 
+                                />
+                                <YAxis hide domain={[0, 1]} />
+                                <Tooltip 
+                                  content={({ active, payload }) => {
+                                    if (active && payload && payload.length) {
+                                      const data = payload[0].payload;
+                                      return (
+                                        <div className="bg-black/90 border border-warrior-metal p-2 rounded text-[8px] uppercase font-bold">
+                                          <p className="text-white">{data.date}</p>
+                                          <p className={data.completed ? "text-warrior-red" : "text-muted-foreground"}>
+                                            {data.completed ? "VICTORY" : "MISSED"}
+                                          </p>
+                                        </div>
+                                      );
+                                    }
+                                    return null;
+                                  }}
+                                />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                          <div className="flex justify-between mt-1 px-1">
+                            <span className="text-[7px] text-muted-foreground uppercase">7 Days Ago</span>
+                            <span className="text-[7px] text-muted-foreground uppercase">Today</span>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </WarriorCard>
               </motion.div>
             );
           })}
         </AnimatePresence>
-
-        {/* Add Habit Form */}
-        <form onSubmit={handleAddHabit} className="flex gap-2 mt-4 pt-4 border-t border-warrior-metal/30">
-          <Input 
-            value={newHabitText}
-            onChange={(e) => setNewHabitText(e.target.value)}
-            placeholder="Add custom objective..."
-            className="bg-black/40 border-warrior-metal text-xs h-10"
-          />
-          <Button type="submit" size="icon" className="bg-warrior-metal hover:bg-warrior-red shrink-0">
-            <Plus size={18} />
-          </Button>
-        </form>
       </div>
 
       <div className="pt-4">

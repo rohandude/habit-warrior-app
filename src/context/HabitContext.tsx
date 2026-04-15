@@ -4,22 +4,31 @@ export interface Habit {
   id: string;
   text: string;
   completed: boolean;
+  days: number[]; // 0 = Sun, 1 = Mon, ..., 6 = Sat
+  history: Record<string, boolean>; // YYYY-MM-DD -> completed
+}
+
+interface HabitStats {
+  completionRate: number;
+  weeklyData: { date: string; completed: boolean }[];
 }
 
 interface HabitContextType {
   habits: Habit[];
-  addHabit: (text: string) => void;
+  addHabit: (text: string, days: number[]) => void;
   toggleHabit: (id: string) => void;
   deleteHabit: (id: string) => void;
   resetDaily: () => void;
+  getTodayHabits: () => Habit[];
+  getHabitStats: (id: string) => HabitStats;
 }
 
 const HabitContext = createContext<HabitContextType | undefined>(undefined);
 
 const DEFAULT_HABITS: Habit[] = [
-  { id: "1", text: "Hydrate: Drink 500ml Water", completed: false },
-  { id: "2", text: "Refresh: Cold Shower / Face Wash", completed: false },
-  { id: "3", text: "Ready: Gear Up & Stretch", completed: false },
+  { id: "1", text: "Hydrate: Drink 500ml Water", completed: false, days: [0, 1, 2, 3, 4, 5, 6], history: {} },
+  { id: "2", text: "Refresh: Cold Shower / Face Wash", completed: false, days: [0, 1, 2, 3, 4, 5, 6], history: {} },
+  { id: "3", text: "Ready: Gear Up & Stretch", completed: false, days: [0, 1, 2, 3, 4, 5, 6], history: {} },
 ];
 
 export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -30,11 +39,18 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     if (saved) {
       const parsed = JSON.parse(saved);
+      // Ensure all habits have the 'days' and 'history' property (migration)
+      const migrated = parsed.map((h: any) => ({
+        ...h,
+        days: h.days || [0, 1, 2, 3, 4, 5, 6],
+        history: h.history || {}
+      }));
+
       if (lastReset !== today) {
         // New day, reset completion
-        return parsed.map((h: Habit) => ({ ...h, completed: false }));
+        return migrated.map((h: Habit) => ({ ...h, completed: false }));
       }
-      return parsed;
+      return migrated;
     }
     return DEFAULT_HABITS;
   });
@@ -60,17 +76,33 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => clearInterval(interval);
   }, []);
 
-  const addHabit = (text: string) => {
+  const addHabit = (text: string, days: number[]) => {
     const newHabit: Habit = {
       id: Date.now().toString(),
       text,
       completed: false,
+      days: days.length > 0 ? days : [0, 1, 2, 3, 4, 5, 6],
+      history: {},
     };
     setHabits(prev => [...prev, newHabit]);
   };
 
   const toggleHabit = (id: string) => {
-    setHabits(prev => prev.map(h => h.id === id ? { ...h, completed: !h.completed } : h));
+    const today = new Date().toISOString().split("T")[0];
+    setHabits(prev => prev.map(h => {
+      if (h.id === id) {
+        const newCompleted = !h.completed;
+        return {
+          ...h,
+          completed: newCompleted,
+          history: {
+            ...h.history,
+            [today]: newCompleted
+          }
+        };
+      }
+      return h;
+    }));
   };
 
   const deleteHabit = (id: string) => {
@@ -81,8 +113,37 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setHabits(prev => prev.map(h => ({ ...h, completed: false })));
   };
 
+  const getTodayHabits = () => {
+    const today = new Date().getDay();
+    return habits.filter(h => h.days.includes(today));
+  };
+
+  const getHabitStats = (id: string): HabitStats => {
+    const habit = habits.find(h => h.id === id);
+    if (!habit) return { completionRate: 0, weeklyData: [] };
+
+    const historyArray = Object.values(habit.history);
+    const completedCount = historyArray.filter(v => v).length;
+    const totalDaysTracked = Math.max(1, historyArray.length);
+    const completionRate = Math.round((completedCount / totalDaysTracked) * 100);
+
+    // Get last 7 days
+    const weeklyData = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split("T")[0];
+      weeklyData.push({
+        date: dateStr,
+        completed: !!habit.history[dateStr]
+      });
+    }
+
+    return { completionRate, weeklyData };
+  };
+
   return (
-    <HabitContext.Provider value={{ habits, addHabit, toggleHabit, deleteHabit, resetDaily }}>
+    <HabitContext.Provider value={{ habits, addHabit, toggleHabit, deleteHabit, resetDaily, getTodayHabits, getHabitStats }}>
       {children}
     </HabitContext.Provider>
   );

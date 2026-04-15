@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
+import { useAudioManager } from "./AudioManagerContext";
 
 interface AlarmContextType {
   alarmTime: string | null;
@@ -23,6 +24,8 @@ export const AlarmProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [hasNotifiedMissed, setHasNotifiedMissed] = useState(false);
   const [hasNotifiedStreak, setHasNotifiedStreak] = useState(false);
 
+  const { setBgmPaused } = useAudioManager();
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ringStartTime = useRef<number | null>(null);
 
@@ -45,6 +48,7 @@ export const AlarmProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const stopAlarm = () => {
     if (isPuzzleSolved) {
       setIsRinging(false);
+      setBgmPaused(false);
       setIsAlarmActive(false);
       localStorage.setItem("warrior_alarm_active", "false");
       ringStartTime.current = null;
@@ -116,6 +120,7 @@ export const AlarmProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Trigger Alarm
       if (diffMs <= 0 && !isRinging && !isPuzzleSolved) {
         setIsRinging(true);
+        setBgmPaused(true);
         ringStartTime.current = Date.now();
         playAlarmSound();
       }
