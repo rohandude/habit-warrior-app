@@ -7,6 +7,7 @@ interface WarriorCardProps extends React.HTMLAttributes<HTMLDivElement> {
   glow?: boolean;
   orange?: boolean;
   className?: string;
+  style?: React.CSSProperties;
   key?: React.Key;
 }
 
